@@ -1,0 +1,45 @@
+name: Lua typecheck
+description: Typecheck a Neovim plugin using lua-language-server
+inputs:
+  path:
+    description: The path to typecheck
+    required: false
+  level:
+    description: The minimum level of diagnostic that should be logged. One of Error, Warning, or Information
+    required: true
+    default: Warning
+  configpath:
+    description: path to luarc.json file
+    required: false
+  libraries:
+    description: Space-separated list of github repos to add to library path
+    required: false
+  neodev-version:
+    description: What version of neodev types to use. One of stable, nightly, or none
+    required: true
+    default: stable
+  neodev-rev:
+    description: The rev of neodev to check out, or "none" to disable
+    required: false
+  nvim-version:
+    description: Version of neovim to use for running the test (e.g. v0.9.1)
+    required: false
+  luals-version:
+    description: Version of LuaLS to use for running the test (e.g. 3.6.25)
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Install Neovim
+      run: ${{ github.action_path }}/install_neovim.sh ${{ inputs.nvim-version }}
+      shell: bash
+    - name: Install LuaLS
+      run: ${{ github.action_path }}/install_luals.sh ${{ inputs.luals-version }}
+      shell: bash
+    - name: Typecheck
+      env:
+        INPUT_NEODEV_REV: ${{ inputs.neodev-rev }}
+        INPUT_CONFIGPATH: ${{ inputs.configpath }}
+        INPUT_LIBRARIES: ${{ inputs.libraries }}
+      run: ${{ github.action_path }}/typecheck.sh --neodev ${{ inputs.neodev-version }} --level ${{ inputs.level }} ${{ inputs.path }} --bin ~/.local/share/language-servers/lua-language-server/bin/lua-language-server
+      shell: bash
