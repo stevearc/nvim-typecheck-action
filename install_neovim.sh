@@ -13,3 +13,4 @@ rm -f nvim.appimage
 mkdir -p ~/.local/share/nvim
 mv squashfs-root ~/.local/share/nvim/appimage
 sudo ln -s "$HOME/.local/share/nvim/appimage/AppRun" /usr/bin/nvim
+/usr/bin/nvim --version

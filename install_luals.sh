@@ -10,3 +10,4 @@ fi
 curl -sL "https://github.com/LuaLS/lua-language-server/releases/download/${VERSION}/lua-language-server-${VERSION}-linux-x64.tar.gz" -o lua-language-server.tar.gz
 tar -zxf lua-language-server.tar.gz
 rm -f lua-language-server.tar.gz
+./bin/lua-language-server --version
