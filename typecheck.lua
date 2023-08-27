@@ -144,6 +144,19 @@ local function prune_workspace_diagnostics(diagnostics, path)
   end
 end
 
+local function prune_docs(docs, path)
+  local to_remove = {}
+  for i, item in ipairs(docs) do
+    local filename = string.sub(item.defines[1].file, 8) -- trim off the leading file://
+    if not vim.startswith(filename, path) then
+      table.insert(to_remove, i)
+    end
+  end
+  for i = #to_remove, 1, -1 do
+    table.remove(docs, to_remove[i])
+  end
+end
+
 local severity_to_string = {
   "INFO",
   "WARN",
@@ -153,7 +166,7 @@ local severity_to_string = {
 ---@param opts Options
 ---@return integer Exit code
 ---@return table?
-local function typecheck(opts)
+local function run_luals(opts)
   local logdir = mkdtemp()
   local config = gen_config(opts)
   local configpath = string.format("%s/luarc.json", logdir)
@@ -164,11 +177,20 @@ local function typecheck(opts)
     logdir,
     "--configpath",
     configpath,
-    "--checklevel",
-    opts.level or "Warning",
-    "--check",
-    opts.path,
   }
+  if opts.cmd == "check" then
+    vim.list_extend(cmd, {
+      "--checklevel",
+      opts.level or "Warning",
+      "--check",
+      opts.path,
+    })
+  elseif opts.cmd == "doc" then
+    vim.list_extend(cmd, {
+      "--doc",
+      opts.path,
+    })
+  end
   local cmdstr = table.concat(cmd, " ")
   print(cmdstr)
   print("\n")
@@ -178,19 +200,23 @@ local function typecheck(opts)
     return exit_code
   end
 
-  local logfile = string.format("%s/check.json", logdir)
+  local logfile = string.format("%s/%s.json", logdir, opts.cmd)
 
   if vim.fn.filereadable(logfile) == 0 then
     print(string.format("Could not read '%s'", logfile))
     return 1
   end
 
-  local diagnostics = read_json_file(logfile)
+  local data = read_json_file(logfile)
   vim.fn.delete(logdir, "rf")
   local fullpath = vim.fn.fnamemodify(opts.path, ":p")
-  prune_workspace_diagnostics(diagnostics, fullpath)
+  if opts.cmd == "check" then
+    prune_workspace_diagnostics(data, fullpath)
+  elseif opts.cmd == "doc" then
+    prune_docs(data, fullpath)
+  end
 
-  return 0, diagnostics
+  return 0, data
 end
 
 local function print_diagnostics(diagnostics)
@@ -234,6 +260,7 @@ local function print_diagnostics(diagnostics)
 end
 
 ---@class Options
+---@field cmd "check"|"doc"
 ---@field path string
 ---@field bin? string
 ---@field level? "Error"|"Warning"|"Information"
@@ -242,6 +269,7 @@ end
 ---@field libraries string[]
 ---@field neodev_version? "nightly"|"stable"|"none"
 ---@field neodev_rev? string
+---@field output? string
 
 ---@param path string
 ---@return string
@@ -279,6 +307,13 @@ local function parse_neodev_version(version)
   return version
 end
 
+local function parse_command(cmd)
+  if cmd ~= "check" and cmd ~= "doc" then
+    print(string.format("Expected command 'check' or 'doc'. Got: '%s'", cmd))
+  end
+  return cmd
+end
+
 ---@param bin string
 ---@return string
 local function parse_bin(bin)
@@ -291,7 +326,7 @@ end
 
 local function print_help()
   local help = table.concat({
-    string.format("%s [OPTIONS] [PATH]", arg[0]),
+    string.format("%s [OPTIONS] <check|doc> [PATH]", arg[0]),
     "\nOptions:",
     "  -h, --help             Print help and exit",
     "  --bin BIN              Path to lua-language-server",
@@ -310,6 +345,7 @@ end
 ---@return Options
 local function parse_args(cli_args)
   local opts = {
+    cmd = nil,
     ignore = {},
     libraries = {},
   }
@@ -340,11 +376,16 @@ local function parse_args(cli_args)
     elseif str == "--neodev-rev" then
       i = i + 1
       opts.neodev_rev = cli_args[i]
+    elseif str == "-o" or str == "--output" then
+      i = i + 1
+      opts.output = cli_args[i]
     else
       if opts.path then
         print("Error: can only specify one path to check")
         print_help()
         os.exit(1)
+      elseif not opts.cmd then
+        opts.cmd = parse_command(str)
       else
         opts.path = str
       end
@@ -352,7 +393,12 @@ local function parse_args(cli_args)
     i = i + 1
   end
 
+  opts.cmd = opts.cmd or "check"
   opts.path = opts.path or "."
+  if opts.cmd == "doc" and not opts.output then
+    print("Error: must specify --output when using 'doc' command")
+    os.exit(1)
+  end
   return opts
 end
 
@@ -360,10 +406,15 @@ end
 vim.o.columns = 10000
 math.randomseed(vim.loop.hrtime())
 local opts = parse_args(arg)
-local code, diagnostics = typecheck(opts)
+local code, data = run_luals(opts)
 if code ~= 0 then
   os.exit(code)
 end
-print_diagnostics(diagnostics)
-code = vim.tbl_isempty(diagnostics) and 0 or 2
+if opts.output then
+  write_json_file(opts.output, data)
+end
+if opts.cmd == "check" then
+  print_diagnostics(data)
+  code = vim.tbl_isempty(data) and 0 or 2
+end
 os.exit(code)

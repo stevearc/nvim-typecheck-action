@@ -41,5 +41,5 @@ runs:
         INPUT_NEODEV_REV: ${{ inputs.neodev-rev }}
         INPUT_CONFIGPATH: ${{ inputs.configpath }}
         INPUT_LIBRARIES: ${{ inputs.libraries }}
-      run: ${{ github.action_path }}/typecheck.sh --neodev ${{ inputs.neodev-version }} --level ${{ inputs.level }} ${{ inputs.path }} --bin ~/.local/share/language-servers/lua-language-server/bin/lua-language-server
+      run: ${{ github.action_path }}/typecheck.sh --neodev ${{ inputs.neodev-version }} --level ${{ inputs.level }} --bin ~/.local/share/language-servers/lua-language-server/bin/lua-language-server check ${{ inputs.path }}
       shell: bash
