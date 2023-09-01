@@ -1,16 +1,3 @@
----@return string
-local function mkdtemp()
-  local tmp = assert(vim.loop.os_tmpdir())
-  local num = 0
-  for _ = 1, 5 do
-    num = 10 * num + math.random(0, 9)
-  end
-
-  local newdir = string.format("%s/tmp_%d", tmp, num)
-  vim.fn.mkdir(newdir, "p")
-  return newdir
-end
-
 ---@param path string
 ---@return any
 local function read_json_file(path)
@@ -54,15 +41,15 @@ local function run_cmd(cmd, opts)
   return exit_code
 end
 
+---@param workdir string path to directory to clone repo into
 ---@param url string url of repo with optional version specifier at the end (e.g. @master)
 ---@return string location on disk of the cloned repo
-local function clone_repo(url)
-  local tmp = assert(vim.loop.os_tmpdir())
+local function clone_repo(workdir, url)
   local pieces = vim.split(url, "@", { plain = true, trimempty = true })
   url = pieces[1]
   local rev = pieces[2]
   local basename = vim.fn.fnamemodify(url, ":t")
-  local dest = string.format("%s/%s", tmp, basename)
+  local dest = string.format("%s/libs/%s", workdir, basename)
   if vim.fn.isdirectory(dest) == 0 then
     local code = run_cmd({ "git", "clone", url, dest })
     if code ~= 0 then
@@ -116,12 +103,12 @@ local function gen_config(opts)
     if opts.neodev_rev then
       neodev_url = neodev_url .. "@" .. opts.neodev_rev
     end
-    local neodev = clone_repo(neodev_url)
+    local neodev = clone_repo(opts.workdir, neodev_url)
     table.insert(config.Lua.workspace.library, string.format("%s/types/%s", neodev, neodev_version))
   end
   for _, lib in ipairs(opts.libraries) do
     if lib:match("^.*://") then
-      local path = clone_repo(lib)
+      local path = clone_repo(opts.workdir, lib)
       table.insert(config.Lua.workspace.library, path)
     else
       table.insert(config.Lua.workspace.library, lib)
@@ -154,7 +141,8 @@ local severity_to_string = {
 ---@return integer Exit code
 ---@return table?
 local function typecheck(opts)
-  local logdir = mkdtemp()
+  local logdir = string.format("%s/logs", opts.workdir)
+  vim.fn.mkdir(logdir, "p")
   local config = gen_config(opts)
   local configpath = string.format("%s/luarc.json", logdir)
   write_json_file(configpath, config)
@@ -186,7 +174,6 @@ local function typecheck(opts)
   end
 
   local diagnostics = read_json_file(logfile)
-  vim.fn.delete(logdir, "rf")
   local fullpath = vim.fn.fnamemodify(opts.path, ":p")
   prune_workspace_diagnostics(diagnostics, fullpath)
 
@@ -242,6 +229,7 @@ end
 ---@field libraries string[]
 ---@field neodev_version? "nightly"|"stable"|"none"
 ---@field neodev_rev? string
+---@field workdir string
 
 ---@param path string
 ---@return string
@@ -301,6 +289,7 @@ local function print_help()
     "  --lib LIBRARY          Path to library or url of github repo. May be specified multiple times",
     "  --neodev VERSION       Version of neodev types (nightly, stable, or none)",
     "  --neodev-rev REV       The git rev of neodev to check out",
+    "  --workdir DIR          Path to directory to store libraries and temp files",
     "",
   }, "\n")
   print(help)
@@ -312,6 +301,7 @@ local function parse_args(cli_args)
   local opts = {
     ignore = {},
     libraries = {},
+    workdir = assert(vim.loop.os_tmpdir()) .. "/nvim-typecheck-action",
   }
   local i = 1
   while i <= #cli_args do
@@ -340,6 +330,12 @@ local function parse_args(cli_args)
     elseif str == "--neodev-rev" then
       i = i + 1
       opts.neodev_rev = cli_args[i]
+    elseif str == "--workdir" then
+      i = i + 1
+      opts.workdir = vim.fn.fnamemodify(cli_args[i], ":p")
+      if vim.endswith(opts.workdir, "/") then
+        opts.workdir = opts.workdir:sub(1, -2)
+      end
     else
       if opts.path then
         print("Error: can only specify one path to check")
