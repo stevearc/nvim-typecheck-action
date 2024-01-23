@@ -132,9 +132,9 @@ local function prune_workspace_diagnostics(diagnostics, path)
 end
 
 local severity_to_string = {
-  "INFO",
-  "WARN",
   "ERROR",
+  "WARN",
+  "INFO",
 }
 
 ---@param opts Options
