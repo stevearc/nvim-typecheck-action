@@ -135,6 +135,7 @@ local severity_to_string = {
   "ERROR",
   "WARN",
   "INFO",
+  "HINT"
 }
 
 ---@param opts Options
