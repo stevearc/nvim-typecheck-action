@@ -24,10 +24,20 @@ end
 ---@return integer exit code
 local function run_cmd(cmd, opts)
   local exit_code
+  local output = {}
   local jid = vim.fn.jobstart(
     cmd,
     vim.tbl_deep_extend("error", {
+      stdout_buffered = true,
+      stderr_buffered = true,
+      on_stdout = function(_, data)
+        vim.list_extend(output, data)
+      end,
+      on_stderr = function(_, data)
+        vim.list_extend(output, data)
+      end,
       on_exit = function(_, code)
+        print(table.concat(output, "\n"))
         exit_code = code
       end,
     }, opts or {})
