@@ -1,10 +1,12 @@
+local uv = vim.uv or vim.loop
+
 ---@param path string
 ---@return any
 local function read_json_file(path)
-  local fd = assert(vim.loop.fs_open(path, "r", 420)) -- 0644
-  local stat = assert(vim.loop.fs_fstat(fd))
-  local content = assert(vim.loop.fs_read(fd, stat.size))
-  vim.loop.fs_close(fd)
+  local fd = assert(uv.fs_open(path, "r", 420)) -- 0644
+  local stat = assert(uv.fs_fstat(fd))
+  local content = assert(uv.fs_read(fd, stat.size))
+  uv.fs_close(fd)
 
   return vim.json.decode(content, { luanil = { object = true } })
 end
@@ -12,9 +14,9 @@ end
 ---@param path string
 ---@param data any
 local function write_json_file(path, data)
-  local fd = assert(vim.loop.fs_open(path, "w", 420)) -- 0644
-  vim.loop.fs_write(fd, vim.json.encode(data))
-  vim.loop.fs_close(fd)
+  local fd = assert(uv.fs_open(path, "w", 420)) -- 0644
+  uv.fs_write(fd, vim.json.encode(data))
+  uv.fs_close(fd)
 end
 
 ---@param cmd string[]
@@ -302,7 +304,7 @@ local function parse_args(cli_args)
   local opts = {
     ignore = {},
     libraries = {},
-    workdir = assert(vim.loop.os_tmpdir()) .. "/nvim-typecheck-action",
+    workdir = assert(uv.os_tmpdir()) .. "/nvim-typecheck-action",
   }
   local i = 1
   while i <= #cli_args do
@@ -355,7 +357,7 @@ end
 
 -- Ensure that the stdout doesn't get truncated
 vim.o.columns = 10000
-math.randomseed(vim.loop.hrtime())
+math.randomseed(uv.hrtime())
 local opts = parse_args(arg)
 local code, diagnostics = typecheck(opts)
 if code ~= 0 then
