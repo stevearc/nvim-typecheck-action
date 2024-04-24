@@ -147,7 +147,7 @@ local severity_to_string = {
   "ERROR",
   "WARN",
   "INFO",
-  "HINT"
+  "HINT",
 }
 
 ---@param opts Options
@@ -156,6 +156,10 @@ local severity_to_string = {
 local function typecheck(opts)
   local logdir = string.format("%s/logs", opts.workdir)
   vim.fn.mkdir(logdir, "p")
+  local logfile = string.format("%s/check.json", logdir)
+  -- Clear out check result from prior run if present
+  uv.fs_unlink(logfile)
+
   local config = gen_config(opts)
   local configpath = string.format("%s/luarc.json", logdir)
   write_json_file(configpath, config)
@@ -179,11 +183,9 @@ local function typecheck(opts)
     return exit_code
   end
 
-  local logfile = string.format("%s/check.json", logdir)
-
   if vim.fn.filereadable(logfile) == 0 then
-    print(string.format("Could not read '%s'", logfile))
-    return 1
+    print(string.format("Could not read '%s'. Assuming no errors.", logfile))
+    return 0, {}
   end
 
   local diagnostics = read_json_file(logfile)
