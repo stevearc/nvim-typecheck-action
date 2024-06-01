@@ -14,15 +14,8 @@ inputs:
   libraries:
     description: Space-separated list of github repos to add to library path
     required: false
-  neodev-version:
-    description: What version of neodev types to use. One of stable, nightly, or none
-    required: true
-    default: stable
-  neodev-rev:
-    description: The rev of neodev to check out, or "none" to disable
-    required: false
   nvim-version:
-    description: Version of neovim to use for running the test (e.g. v0.9.1)
+    description: Version of neovim to use for running the test (e.g. v0.10.0)
     required: false
   luals-version:
     description: Version of LuaLS to use for running the test (e.g. 3.6.25)
@@ -38,8 +31,7 @@ runs:
       shell: bash
     - name: Typecheck
       env:
-        INPUT_NEODEV_REV: ${{ inputs.neodev-rev }}
         INPUT_CONFIGPATH: ${{ inputs.configpath }}
         INPUT_LIBRARIES: ${{ inputs.libraries }}
-      run: ${{ github.action_path }}/typecheck.sh --neodev ${{ inputs.neodev-version }} --level ${{ inputs.level }} ${{ inputs.path }} --bin ~/.local/share/language-servers/lua-language-server/bin/lua-language-server
+      run: ${{ github.action_path }}/typecheck.sh --level ${{ inputs.level }} ${{ inputs.path }} --bin ~/.local/share/language-servers/lua-language-server/bin/lua-language-server
       shell: bash

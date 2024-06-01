@@ -3,9 +3,6 @@ set -e
 HERE=$(dirname "$(realpath "$0")")
 
 EXTRA_ARGS=
-if [ -n "$INPUT_NEODEV_REV" ]; then
-  EXTRA_ARGS="$EXTRA_ARGS --neodev-rev $INPUT_NEODEV_REV"
-fi
 if [ -n "$INPUT_CONFIGPATH" ]; then
   EXTRA_ARGS="$EXTRA_ARGS --configpath $INPUT_CONFIGPATH"
 fi

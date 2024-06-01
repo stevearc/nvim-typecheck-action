@@ -102,6 +102,8 @@ local function gen_config(opts)
         },
         runtime = {
           version = "LuaJIT",
+          path = { "?.lua", "?/init.lua" },
+          pathStrict = true,
         },
       },
     }
@@ -109,15 +111,7 @@ local function gen_config(opts)
   config.Lua.workspace = config.Lua.workspace or {}
   config.Lua.workspace.library = config.Lua.workspace.library or {}
   table.insert(config.Lua.workspace.library, vim.env.VIMRUNTIME)
-  local neodev_version = opts.neodev_version or "stable"
-  if neodev_version ~= "none" then
-    local neodev_url = "https://github.com/folke/neodev.nvim"
-    if opts.neodev_rev then
-      neodev_url = neodev_url .. "@" .. opts.neodev_rev
-    end
-    local neodev = clone_repo(opts.workdir, neodev_url)
-    table.insert(config.Lua.workspace.library, string.format("%s/types/%s", neodev, neodev_version))
-  end
+  table.insert(opts.libraries, "https://github.com/Bilal2453/luvit-meta")
   for _, lib in ipairs(opts.libraries) do
     if lib:match("^.*://") then
       local path = clone_repo(opts.workdir, lib)
@@ -152,7 +146,7 @@ local severity_to_string = {
 
 ---@param opts Options
 ---@return integer Exit code
----@return table?
+---@return table
 local function typecheck(opts)
   local logdir = string.format("%s/logs", opts.workdir)
   vim.fn.mkdir(logdir, "p")
@@ -180,7 +174,7 @@ local function typecheck(opts)
 
   local exit_code = run_cmd(cmd)
   if exit_code ~= 0 then
-    return exit_code
+    return exit_code, {}
   end
 
   if vim.fn.filereadable(logfile) == 0 then
@@ -242,8 +236,6 @@ end
 ---@field configpath? string
 ---@field ignore string[]
 ---@field libraries string[]
----@field neodev_version? "nightly"|"stable"|"none"
----@field neodev_rev? string
 ---@field workdir string
 
 ---@param path string
@@ -272,16 +264,6 @@ local function parse_level(level)
   end
 end
 
----@param version string
----@return "none"|"stable"|"nightly"
-local function parse_neodev_version(version)
-  if version ~= "none" and version ~= "stable" and version ~= "nightly" then
-    print(string.format("neodev version '%s' must be one of nightly, stable, or none", version))
-    os.exit(1)
-  end
-  return version
-end
-
 ---@param bin string
 ---@return string
 local function parse_bin(bin)
@@ -302,8 +284,6 @@ local function print_help()
     "  --configpath CONFIG    Path to luarc.json config file",
     "  --ignore PATH          Path to ignore. May be specified multiple times",
     "  --lib LIBRARY          Path to library or url of github repo. May be specified multiple times",
-    "  --neodev VERSION       Version of neodev types (nightly, stable, or none)",
-    "  --neodev-rev REV       The git rev of neodev to check out",
     "  --workdir DIR          Path to directory to store libraries and temp files",
     "",
   }, "\n")
@@ -339,12 +319,6 @@ local function parse_args(cli_args)
     elseif str == "--lib" then
       i = i + 1
       table.insert(opts.libraries, cli_args[i])
-    elseif str == "--neodev" then
-      i = i + 1
-      opts.neodev_version = parse_neodev_version(cli_args[i])
-    elseif str == "--neodev-rev" then
-      i = i + 1
-      opts.neodev_rev = cli_args[i]
     elseif str == "--workdir" then
       i = i + 1
       opts.workdir = vim.fn.fnamemodify(cli_args[i], ":p")
@@ -370,6 +344,7 @@ end
 -- Ensure that the stdout doesn't get truncated
 vim.o.columns = 10000
 math.randomseed(uv.hrtime())
+assert(arg)
 local opts = parse_args(arg)
 local code, diagnostics = typecheck(opts)
 if code ~= 0 then

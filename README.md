@@ -73,28 +73,6 @@ Use this if your plugin depends on types that are declared in another plugin.
         https://github.com/rcarriga/neotest
 ```
 
-### `neodev-version`
-
-Which version of neodev types to use. The options are `stable`, `nightly`, or `none` (to disable).
-
-This action uses [neodev.nvim](https://github.com/folke/neodev.nvim) to get the type annotations for core Neovim. This input determines which version of the types to use.
-
-```yaml
-- uses: stevearc/nvim-typecheck-action@v1
-  with:
-    neodev-version: nightly
-```
-
-### `neodev-rev`
-
-Which git rev to check out for neodev.nvim. Ignored if `neodev-version` is `none`.
-
-```yaml
-- uses: stevearc/nvim-typecheck-action@v1
-  with:
-    neodev-rev: v2.5.1
-```
-
 ### `nvim-version`
 
 Which version of Neovim to use to run the check.
@@ -102,7 +80,7 @@ Which version of Neovim to use to run the check.
 ```yaml
 - uses: stevearc/nvim-typecheck-action@v1
   with:
-    nvim-version: v0.9.1
+    nvim-version: v0.10.0
 ```
 
 ### `luals-version`
