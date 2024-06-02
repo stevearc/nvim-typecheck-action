@@ -23,8 +23,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: stevearc/nvim-typecheck-action@v1
+      - uses: actions/checkout@v4
+      - uses: stevearc/nvim-typecheck-action@v2
 ```
 
 ## Inputs
@@ -36,7 +36,7 @@ The following optional inputs can be specified using `with:`
 The path to typecheck
 
 ```yaml
-- uses: stevearc/nvim-typecheck-action@v1
+- uses: stevearc/nvim-typecheck-action@v2
   with:
     path: lua
 ```
@@ -46,7 +46,7 @@ The path to typecheck
 The minimum level of diagnostic that should be logged. One of `Error`, `Warning`, or `Information`
 
 ```yaml
-- uses: stevearc/nvim-typecheck-action@v1
+- uses: stevearc/nvim-typecheck-action@v2
   with:
     level: Error
 ```
@@ -56,7 +56,7 @@ The minimum level of diagnostic that should be logged. One of `Error`, `Warning`
 Path to a [`luarc.json`](https://luals.github.io/wiki/configuration/) file
 
 ```yaml
-- uses: stevearc/nvim-typecheck-action@v1
+- uses: stevearc/nvim-typecheck-action@v2
   with:
     configpath: ".luarc.json"
 ```
@@ -67,10 +67,10 @@ Space-separated list of github repos to add to the library path.
 Use this if your plugin depends on types that are declared in another plugin.
 
 ```yaml
-- uses: stevearc/nvim-typecheck-action@v1
+- uses: stevearc/nvim-typecheck-action@v2
   with:
     libraries: |
-        https://github.com/rcarriga/neotest
+      https://github.com/nvim-neotest/neotest
 ```
 
 ### `nvim-version`
@@ -78,7 +78,7 @@ Use this if your plugin depends on types that are declared in another plugin.
 Which version of Neovim to use to run the check.
 
 ```yaml
-- uses: stevearc/nvim-typecheck-action@v1
+- uses: stevearc/nvim-typecheck-action@v2
   with:
     nvim-version: v0.10.0
 ```
@@ -88,7 +88,7 @@ Which version of Neovim to use to run the check.
 Which version of lua-language-server to use to run the check.
 
 ```yaml
-- uses: stevearc/nvim-typecheck-action@v1
+- uses: stevearc/nvim-typecheck-action@v2
   with:
-    luals-version: 3.6.25
+    luals-version: 3.9.1
 ```
