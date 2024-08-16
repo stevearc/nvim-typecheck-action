@@ -84,7 +84,14 @@ end
 local function gen_config(opts)
   local config
   if opts.configpath then
-    config = vim.tbl_deep_extend("force", read_json_file(opts.configpath), {
+    local project_conf = read_json_file(opts.configpath)
+    -- luarc.json files don't have to prefix values with Lua
+    -- https://luals.github.io/wiki/configuration/#luarcjson-file
+    -- So if they don't, we need to add that prefix to keep the right format.
+    if not project_conf.Lua then
+      project_conf = { Lua = project_conf }
+    end
+    config = vim.tbl_deep_extend("force", project_conf, {
       Lua = {
         telemetry = {
           enable = false,
@@ -335,6 +342,14 @@ local function parse_args(cli_args)
       end
     end
     i = i + 1
+  end
+
+  if not opts.configpath then
+    if uv.fs_stat(".luarc.json") then
+      opts.configpath = vim.fn.fnamemodify(".luarc.json", ":p")
+    elseif uv.fs_stat("luarc.json") then
+      opts.configpath = vim.fn.fnamemodify("luarc.json", ":p")
+    end
   end
 
   opts.path = opts.path or "."
