@@ -3,7 +3,7 @@ set -e
 
 NVIM_TAG="${1-stable}"
 echo "Installing Neovim $NVIM_TAG"
-curl -sL "https://github.com/neovim/neovim/releases/download/${NVIM_TAG}/nvim.appimage" -o nvim.appimage
+curl -sL "https://github.com/neovim/neovim/releases/download/${NVIM_TAG}/nvim-linux-x86_64.appimage" -o nvim.appimage
 chmod +x nvim.appimage
 ./nvim.appimage --appimage-extract >/dev/null
 rm -f nvim.appimage
