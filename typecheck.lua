@@ -1,5 +1,10 @@
 local uv = vim.uv or vim.loop
 
+local function script_path()
+  local str = debug.getinfo(2, "S").source:sub(2)
+  return str:match("(.*/)")
+end
+
 ---@param path string
 ---@return any
 local function read_json_file(path)
@@ -9,6 +14,14 @@ local function read_json_file(path)
   uv.fs_close(fd)
 
   return vim.json.decode(content, { luanil = { object = true } })
+end
+
+---@param path string
+---@param data string
+local function write_file(path, data)
+  local fd = assert(uv.fs_open(path, "w", tonumber("755", 8)))
+  uv.fs_write(fd, data)
+  uv.fs_close(fd)
 end
 
 ---@param path string
@@ -132,34 +145,11 @@ local function gen_config(opts)
   return config
 end
 
----Remove diagnostics from workspace libraries
----@param diagnostics table<string, any>
----@param path string
-local function prune_workspace_diagnostics(diagnostics, path)
-  for _, uri in ipairs(vim.tbl_keys(diagnostics)) do
-    local filename = string.sub(uri, 8) -- trim off the leading file://
-    if not vim.startswith(filename, path) then
-      diagnostics[uri] = nil
-    end
-  end
-end
-
-local severity_to_string = {
-  "ERROR",
-  "WARN",
-  "INFO",
-  "HINT",
-}
-
 ---@param opts Options
----@return integer Exit code
----@return table
-local function typecheck(opts)
+local function create_typecheck_script(opts)
   local logdir = string.format("%s/logs", opts.workdir)
   vim.fn.mkdir(logdir, "p")
-  local logfile = string.format("%s/check.json", logdir)
   -- Clear out check result from prior run if present
-  uv.fs_unlink(logfile)
 
   local config = gen_config(opts)
   local configpath = string.format("%s/luarc.json", logdir)
@@ -170,70 +160,20 @@ local function typecheck(opts)
     logdir,
     "--configpath",
     configpath,
+    "--check_format",
+    "pretty",
     "--checklevel",
     opts.level or "Warning",
     "--check",
     opts.path,
   }
-  local cmdstr = table.concat(cmd, " ")
-  print(cmdstr)
-  print("\n")
-
-  local exit_code = run_cmd(cmd)
-  if exit_code ~= 0 then
-    return exit_code, {}
-  end
-
-  if vim.fn.filereadable(logfile) == 0 then
-    print(string.format("Could not read '%s'. Assuming no errors.", logfile))
-    return 0, {}
-  end
-
-  local diagnostics = read_json_file(logfile)
-  local fullpath = vim.fn.fnamemodify(opts.path, ":p")
-  prune_workspace_diagnostics(diagnostics, fullpath)
-
-  return 0, diagnostics
-end
-
-local function print_diagnostics(diagnostics)
-  local curdir = vim.fn.getcwd()
-  local count = 0
-  local uris = vim.tbl_keys(diagnostics)
-  table.sort(uris)
-  for _, uri in ipairs(uris) do
-    local filename = string.sub(uri, 8) -- trim off the leading file://
-    if vim.startswith(filename, curdir) then
-      filename = filename:sub(curdir:len() + 2)
-    end
-    local file_diagnostics = diagnostics[uri]
-    table.sort(file_diagnostics, function(a, b)
-      return a.range.start.line < b.range.start.line
-        or (a.range.start.line == b.range.start.line and a.range.start.character < b.range.start.character)
-    end)
-    for _, diagnostic in ipairs(file_diagnostics) do
-      local severity = severity_to_string[diagnostic.severity]
-      local msg = vim.split(diagnostic.message, "\n", { plain = true, trimempty = true })[1]
-      local line = string.format(
-        "%s:%d:%d:%d:%d: %s %s [%s]",
-        filename,
-        diagnostic.range.start.line + 1,
-        diagnostic.range.start.character,
-        diagnostic.range["end"].line + 1,
-        diagnostic.range["end"].character,
-        severity,
-        msg,
-        diagnostic.code
-      )
-      vim.api.nvim_out_write(line .. "\n")
-      count = count + 1
-    end
-  end
-  if count == 0 then
-    print("No issues found!")
-  else
-    print(string.format("Found %d issues", count))
-  end
+  local cmdstr = table.concat(vim.tbl_map(vim.fn.shellescape, cmd), " ")
+  local script = [[#!/bin/bash
+set -e
+]] .. cmdstr .. [[
+  ]]
+  local script_file = vim.fs.joinpath(script_path(), "check_cmd.sh")
+  write_file(script_file, script)
 end
 
 ---@class Options
@@ -361,10 +301,4 @@ vim.o.columns = 10000
 math.randomseed(uv.hrtime())
 assert(arg)
 local opts = parse_args(arg)
-local code, diagnostics = typecheck(opts)
-if code ~= 0 then
-  os.exit(code)
-end
-print_diagnostics(diagnostics)
-code = vim.tbl_isempty(diagnostics) and 0 or 2
-os.exit(code)
+create_typecheck_script(opts)

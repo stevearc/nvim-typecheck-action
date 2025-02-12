@@ -12,4 +12,5 @@ if [ -n "$INPUT_LIBRARIES" ]; then
   done
 fi
 
-exec nvim --headless -u /dev/null --noplugin -l "$HERE/typecheck.lua" "$@" $EXTRA_ARGS
+nvim --headless -u /dev/null --noplugin -l "$HERE/typecheck.lua" "$@" $EXTRA_ARGS
+exec $HERE/check_cmd.sh
