@@ -1,10 +1,5 @@
 local uv = vim.uv or vim.loop
 
-local function script_path()
-  local str = debug.getinfo(2, "S").source:sub(2)
-  return str:match("(.*/)")
-end
-
 ---@param path string
 ---@return any
 local function read_json_file(path)
@@ -14,14 +9,6 @@ local function read_json_file(path)
   uv.fs_close(fd)
 
   return vim.json.decode(content, { luanil = { object = true } })
-end
-
----@param path string
----@param data string
-local function write_file(path, data)
-  local fd = assert(uv.fs_open(path, "w", tonumber("755", 8)))
-  uv.fs_write(fd, data)
-  uv.fs_close(fd)
 end
 
 ---@param path string
@@ -63,6 +50,35 @@ local function run_cmd(cmd, opts)
     return 1
   end
   vim.fn.jobwait({ jid })
+  return exit_code
+end
+
+---@param cmd string[]
+---@return integer exit code
+local function run_cmd_in_terminal(cmd)
+  local exit_code
+  local handle, err = uv.spawn(cmd[1], {
+    args = vim.list_slice(cmd, 2),
+    -- Keep LuaLS attached to the caller's terminal so its pretty output,
+    -- including ANSI colors, is rendered normally.
+    stdio = { 0, 1, 2 },
+  }, function(code, signal)
+    if code ~= 0 then
+      exit_code = code
+    elseif signal ~= 0 then
+      exit_code = 128 + signal
+    else
+      exit_code = 0
+    end
+  end)
+  if not handle then
+    print(string.format("Could not run '%s': %s", cmd[1], err))
+    return 1
+  end
+  while exit_code == nil do
+    vim.wait(100)
+  end
+  handle:close()
   return exit_code
 end
 
@@ -146,7 +162,8 @@ local function gen_config(opts)
 end
 
 ---@param opts Options
-local function create_typecheck_script(opts)
+---@return integer exit code
+local function run_typecheck(opts)
   local logdir = string.format("%s/logs", opts.workdir)
   vim.fn.mkdir(logdir, "p")
   -- Clear out check result from prior run if present
@@ -167,13 +184,7 @@ local function create_typecheck_script(opts)
     "--check",
     opts.path,
   }
-  local cmdstr = table.concat(vim.tbl_map(vim.fn.shellescape, cmd), " ")
-  local script = [[#!/bin/bash
-set -e
-]] .. cmdstr .. [[
-  ]]
-  local script_file = vim.fs.joinpath(script_path(), "check_cmd.sh")
-  write_file(script_file, script)
+  return run_cmd_in_terminal(cmd)
 end
 
 ---@class Options
@@ -301,4 +312,4 @@ vim.o.columns = 10000
 math.randomseed(uv.hrtime())
 assert(arg)
 local opts = parse_args(arg)
-create_typecheck_script(opts)
+os.exit(run_typecheck(opts))
