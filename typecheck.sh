@@ -6,6 +6,9 @@ EXTRA_ARGS=
 if [ -n "$INPUT_CONFIGPATH" ]; then
   EXTRA_ARGS="$EXTRA_ARGS --configpath $INPUT_CONFIGPATH"
 fi
+if [ -n "$INPUT_FAILLEVEL" ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --faillevel $INPUT_FAILLEVEL"
+fi
 if [ -n "$INPUT_LIBRARIES" ]; then
   for lib in $INPUT_LIBRARIES; do
     EXTRA_ARGS="$EXTRA_ARGS --lib $lib"
