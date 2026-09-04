@@ -51,6 +51,18 @@ The minimum level of diagnostic that should be logged. One of `Error`, `Warning`
     level: Error
 ```
 
+### `faillevel`
+
+The minimum level of diagnostic that should fail the job. One of `Error`, `Warning`, or `Information`.
+Defaults to whatever `level` is set. Fails if set to severity below `level` itself.
+
+```yaml
+- uses: stevearc/nvim-typecheck-action@v2
+  with:
+    level: Warning
+    faillevel: Error
+```
+
 ### `configpath`
 
 Path to a [`luarc.json`](https://luals.github.io/wiki/configuration/) file

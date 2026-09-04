@@ -11,6 +11,9 @@ inputs:
   configpath:
     description: path to luarc.json file
     required: false
+  faillevel:
+    description: The minimum diagnostic level to produce job failure. Defaults to `level`. Fails if set below severity of `level`.
+    required: false
   libraries:
     description: Space-separated list of github repos to add to library path
     required: false
@@ -32,6 +35,7 @@ runs:
     - name: Typecheck
       env:
         INPUT_CONFIGPATH: ${{ inputs.configpath }}
+        INPUT_FAILLEVEL: ${{ inputs.faillevel }}
         INPUT_LIBRARIES: ${{ inputs.libraries }}
       run: ${{ github.action_path }}/typecheck.sh --level ${{ inputs.level }} ${{ inputs.path }} --bin ~/.local/share/language-servers/lua-language-server/bin/lua-language-server
       shell: bash

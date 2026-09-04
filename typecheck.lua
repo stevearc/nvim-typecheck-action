@@ -161,6 +161,13 @@ local function gen_config(opts)
   return config
 end
 
+local SEVERITY_CODE = {
+  Error = 1,
+  Warning = 2,
+  Information = 3,
+  Hint = 4,
+}
+
 ---@param opts Options
 ---@return integer exit code
 local function run_typecheck(opts)
@@ -171,6 +178,7 @@ local function run_typecheck(opts)
   local config = gen_config(opts)
   local configpath = string.format("%s/luarc.json", logdir)
   write_json_file(configpath, config)
+  local check_out_path = string.format("%s/check.json", logdir)
   local cmd = {
     opts.bin or "lua-language-server",
     "--logpath",
@@ -179,18 +187,38 @@ local function run_typecheck(opts)
     configpath,
     "--check_format",
     "pretty",
+    "--check_out_path",
+    check_out_path,
     "--checklevel",
     opts.level or "Warning",
     "--check",
     opts.path,
   }
-  return run_cmd_in_terminal(cmd)
+  local raw_exit_code = run_cmd_in_terminal(cmd)
+
+  local ok, results = pcall(read_json_file, check_out_path)
+  if not ok then
+    print(string.format("::warning::Failed to parse JSON of check_out_path '%s'", check_out_path))
+    return raw_exit_code
+  end
+
+  local faillevel = opts.faillevel or opts.level or "Warning"
+  local fail_threshold = SEVERITY_CODE[faillevel]
+  for _, diagnostics in pairs(results) do
+    for _, diagnostic in ipairs(diagnostics) do
+      if diagnostic.severity <= fail_threshold then
+        return 1
+      end
+    end
+  end
+  return 0
 end
 
 ---@class Options
 ---@field path string
 ---@field bin? string
 ---@field level? "Error"|"Warning"|"Information"
+---@field faillevel? "Error"|"Warning"|"Information"
 ---@field configpath? string
 ---@field ignore string[]
 ---@field libraries string[]
@@ -239,6 +267,8 @@ local function print_help()
     "  -h, --help             Print help and exit",
     "  --bin BIN              Path to lua-language-server",
     "  --level LEVEL          Minimum level to check (one of Information, Warning, Error)",
+    "  --faillevel LEVEL      Minimum level to fail (defaults to --level).",
+    "                         (Must be at least as severe as --level)",
     "  --configpath CONFIG    Path to luarc.json config file",
     "  --ignore PATH          Path to ignore. May be specified multiple times",
     "  --lib LIBRARY          Path to library or url of github repo. May be specified multiple times",
@@ -265,6 +295,9 @@ local function parse_args(cli_args)
     elseif str == "--level" then
       i = i + 1
       opts.level = parse_level(cli_args[i])
+    elseif str == "--faillevel" then
+      i = i + 1
+      opts.faillevel = parse_level(cli_args[i])
     elseif str == "--bin" then
       i = i + 1
       opts.bin = parse_bin(cli_args[i])
@@ -300,6 +333,14 @@ local function parse_args(cli_args)
       opts.configpath = vim.fn.fnamemodify(".luarc.json", ":p")
     elseif uv.fs_stat("luarc.json") then
       opts.configpath = vim.fn.fnamemodify("luarc.json", ":p")
+    end
+  end
+
+  if opts.faillevel then
+    local level = opts.level or "Warning"
+    if SEVERITY_CODE[opts.faillevel] > SEVERITY_CODE[level] then
+      print(string.format("faillevel '%s' must not be less severe than level '%s'", opts.faillevel, level))
+      os.exit(1)
     end
   end
 
